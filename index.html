@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LitShip 自己分析アプリ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','メイリオ',Meiryo,sans-serif; background:#f0f4ff; color:#1a1a2e; }
+
+    .screen { display:none; flex-direction:column; }
+    .screen.active { display:flex; }
+
+    /* ── WELCOME ── */
+    #welcome-screen { min-height:100vh; align-items:center; justify-content:center; padding:24px; }
+    .wcard { background:white; border-radius:20px; padding:36px 32px; max-width:440px; width:100%; box-shadow:0 8px 40px rgba(37,99,235,.12); text-align:center; }
+    .badge { display:inline-block; background:linear-gradient(135deg,#2563eb,#7c3aed); color:white; font-size:12px; font-weight:700; letter-spacing:2px; padding:5px 14px; border-radius:20px; margin-bottom:10px; }
+    .wcard h1 { font-size:26px; font-weight:800; margin-bottom:5px; }
+    .wcard .sub { font-size:13px; color:#6b7280; line-height:1.6; margin-bottom:22px; }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:24px; }
+    .chip { background:#f0f4ff; border:1px solid #c7d7ff; color:#2563eb; font-size:11px; font-weight:600; padding:5px 11px; border-radius:20px; }
+    .fg { margin-bottom:12px; text-align:left; }
+    .fg label { display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:5px; }
+    .fg input { width:100%; padding:13px 16px; border:1.5px solid #e5e7eb; border-radius:10px; font-size:15px; font-family:inherit; outline:none; }
+    .fg input:focus { border-color:#2563eb; }
+
+    .paste-area { width:100%; padding:11px 14px; border:1.5px solid #e5e7eb; border-radius:10px; font-size:13px; font-family:inherit; resize:vertical; outline:none; min-height:80px; line-height:1.6; color:#374151; }
+    .paste-area:focus { border-color:#2563eb; }
+    .import-badge { display:none; margin-top:8px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:8px 12px; font-size:12px; color:#166534; text-align:center; }
+
+    .btn-go { width:100%; background:linear-gradient(135deg,#2563eb,#7c3aed); color:white; border:none; padding:15px; border-radius:12px; font-size:16px; font-weight:700; cursor:pointer; margin-top:12px; }
+    .btn-go:hover { opacity:.92; }
+
+    /* ── BRIEFING ── */
+    #briefing-screen { min-height:100vh; align-items:center; justify-content:center; padding:24px; }
+    .bfcard { background:white; border-radius:20px; padding:36px 30px; max-width:480px; width:100%; box-shadow:0 8px 40px rgba(37,99,235,.12); }
+    .bf-head { display:flex; align-items:center; gap:12px; padding-bottom:16px; border-bottom:1px solid #e9ecef; margin-bottom:18px; }
+    .bf-avi { width:46px; height:46px; border-radius:50%; background:linear-gradient(135deg,#2563eb,#7c3aed); display:flex; align-items:center; justify-content:center; font-size:22px; }
+    .bf-from  { font-size:11px; color:#9ca3af; margin-bottom:2px; }
+    .bf-title { font-size:17px; font-weight:800; }
+    .bf-speech { font-size:14px; line-height:1.85; color:#374151; margin-bottom:18px; }
+    .bf-speech strong { color:#2563eb; }
+    .bf-boxes { display:flex; flex-direction:column; gap:8px; margin-bottom:22px; }
+    .bf-box { background:#f8faff; border-radius:10px; padding:12px 14px; border-left:3px solid #2563eb; }
+    .bf-box:nth-child(2) { border-left-color:#059669; }
+    .bx-t { font-size:12px; font-weight:700; color:#374151; margin-bottom:5px; }
+    .bx-b { font-size:12.5px; color:#4b5563; line-height:1.7; }
+    .btn-bf { width:100%; background:linear-gradient(135deg,#2563eb,#7c3aed); color:white; border:none; padding:15px; border-radius:12px; font-size:16px; font-weight:700; cursor:pointer; }
+    .btn-bf:hover { opacity:.92; }
+
+    /* ── CHAT ── */
+    #chat-screen { height:100vh; }
+    .cheader { background:linear-gradient(135deg,#2563eb,#7c3aed); padding:12px 16px 0; flex-shrink:0; }
+    .chtop { display:flex; align-items:center; gap:10px; color:white; margin-bottom:10px; }
+    .chavi { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; font-size:17px; }
+    .chname  { font-weight:700; font-size:14px; }
+    .chphase { font-size:11px; opacity:.8; }
+    .pbwrap { display:flex; margin:0 -16px; }
+    .pbstep { flex:1; text-align:center; padding:6px 2px 5px; font-size:9.5px; color:rgba(255,255,255,.35); border-bottom:3px solid transparent; transition:all .3s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pbstep.done   { color:rgba(255,255,255,.6); border-bottom-color:rgba(255,255,255,.4); }
+    .pbstep.active { color:white; font-weight:700; border-bottom-color:white; }
+
+    .msgs { flex:1; overflow-y:auto; padding:14px 14px 8px; display:flex; flex-direction:column; gap:10px; }
+    .brow { display:flex; gap:7px; align-items:flex-end; }
+    .brow.user { flex-direction:row-reverse; }
+    .bavi2 { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
+    .bavi2.ca { background:linear-gradient(135deg,#2563eb,#7c3aed); }
+    .bavi2.ua { background:#e5e7eb; }
+    .bcnt { max-width:76%; }
+    .blbl { font-size:10px; color:#9ca3af; margin-bottom:3px; }
+    .brow.user .blbl { text-align:right; }
+    .bub { padding:10px 13px; border-radius:14px; font-size:14.5px; line-height:1.65; white-space:pre-wrap; word-break:break-word; }
+    .bub.coach { background:white; border:1px solid #e9ecef; border-radius:4px 14px 14px 14px; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+    .bub.user  { background:linear-gradient(135deg,#2563eb,#7c3aed); color:white; border-radius:14px 4px 14px 14px; }
+    .trow { display:flex; gap:7px; align-items:flex-end; }
+    .tbub { background:white; border:1px solid #e9ecef; border-radius:4px 14px 14px 14px; padding:12px 14px; display:flex; gap:4px; align-items:center; }
+    .dot { width:6px; height:6px; background:#9ca3af; border-radius:50%; animation:bop 1.2s infinite; }
+    .dot:nth-child(2){animation-delay:.2s} .dot:nth-child(3){animation-delay:.4s}
+    @keyframes bop{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+
+    .qzone { padding:8px 12px 0; display:flex; gap:7px; flex-shrink:0; flex-wrap:wrap; min-height:36px; }
+    .qbtn { background:white; border:1.5px solid #2563eb; color:#2563eb; padding:7px 14px; border-radius:20px; font-size:12.5px; font-weight:600; cursor:pointer; transition:all .15s; }
+    .qbtn:hover { background:#2563eb; color:white; }
+    .qbtn.sec { border-color:#7c3aed; color:#7c3aed; }
+    .qbtn.sec:hover { background:#7c3aed; color:white; }
+    .qbtn.undo { border-color:#dc2626; color:#dc2626; font-size:12px; }
+    .qbtn.undo:hover { background:#dc2626; color:white; }
+    .qbtn.prev { border-color:#9ca3af; color:#6b7280; font-size:12px; }
+    .qbtn.prev:hover { background:#9ca3af; color:white; }
+
+    .ibar { background:white; border-top:1px solid #e9ecef; padding:10px 12px; display:flex; gap:8px; align-items:flex-end; flex-shrink:0; }
+    #inp { flex:1; padding:10px 14px; border:1.5px solid #e5e7eb; border-radius:22px; font-size:15px; font-family:inherit; resize:none; outline:none; max-height:100px; }
+    #inp:focus { border-color:#2563eb; }
+    #sbtn { width:40px; height:40px; background:linear-gradient(135deg,#2563eb,#7c3aed); color:white; border:none; border-radius:50%; font-size:17px; cursor:pointer; flex-shrink:0; }
+    #sbtn:disabled { opacity:.35; cursor:default; }
+
+    /* ── SUMMARY ── */
+    #summary-screen { min-height:100vh; }
+    .shero { background:linear-gradient(135deg,#2563eb,#7c3aed); color:white; padding:32px 20px; text-align:center; flex-shrink:0; }
+    .shero .emo { font-size:44px; margin-bottom:8px; }
+    .shero h1   { font-size:24px; font-weight:800; margin-bottom:5px; }
+    .shero p    { font-size:13px; opacity:.85; }
+    .sbody { padding:18px 14px; max-width:700px; margin:0 auto; width:100%; }
+    .ssec { background:white; border-radius:14px; padding:18px; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,.06); border-left:4px solid #2563eb; }
+    .ssec:nth-child(2){border-left-color:#dc2626}
+    .ssec:nth-child(3){border-left-color:#059669}
+    .ssec:nth-child(4){border-left-color:#d97706}
+    .ssec:nth-child(5){border-left-color:#7c3aed}
+    .ssh { font-size:13.5px; font-weight:700; margin-bottom:10px; }
+    .ssi { font-size:13px; line-height:1.65; padding:8px 10px; margin-bottom:6px; background:#f8faff; border-radius:8px; position:relative; }
+    .ssi.new-item { background:#fffbf0; border-left:2px solid #f59e0b; }
+    .ssi .im { font-weight:600; }
+    .ssi .ir { color:#4b5563; font-size:12px; margin-top:3px; }
+    .new-tag { font-size:9px; background:#f59e0b; color:white; border-radius:4px; padding:1px 5px; margin-left:6px; vertical-align:middle; font-weight:700; }
+    .sacts { padding:0 14px 36px; max-width:700px; margin:0 auto; width:100%; display:flex; flex-direction:column; gap:10px; }
+    .abt { display:flex; align-items:center; justify-content:center; gap:8px; padding:16px; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer; border:none; text-decoration:none; transition:opacity .2s; }
+    .abt:hover{opacity:.88}
+    .abt.blue{background:linear-gradient(135deg,#2563eb,#7c3aed);color:white}
+    .abt.red{background:#dc2626;color:white}
+    .abt.ghost{background:#f3f4f6;color:#4b5563}
+
+    /* ── SUMMARY TEXT OUTPUT ── */
+    .txt-wrap { position:relative; margin-bottom:12px; }
+    .txt-output {
+      width:100%; min-height:160px; padding:16px; padding-top:44px;
+      background:white; border:1.5px solid #e5e7eb; border-radius:14px;
+      font-family:'Hiragino Sans','メイリオ',monospace; font-size:13px; line-height:1.75;
+      color:#1a1a2e; resize:vertical; outline:none; box-shadow:0 2px 8px rgba(0,0,0,.06);
+    }
+    .copy-btn {
+      position:absolute; top:10px; right:10px;
+      background:linear-gradient(135deg,#2563eb,#7c3aed); color:white;
+      border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;
+      cursor:pointer; display:flex; align-items:center; gap:5px; transition:opacity .15s;
+      z-index:2;
+    }
+    .copy-btn:hover { opacity:.88; }
+    .copy-btn.copied { background:#059669; }
+
+    /* ── TUTORIAL MODAL ── */
+    #tut-modal {
+      display:none; position:fixed; inset:0; z-index:9999;
+      background:rgba(0,0,0,.65); align-items:center; justify-content:center; padding:16px;
+    }
+    #tut-modal.show { display:flex; }
+    .tut-shell {
+      background:white; border-radius:22px; width:100%; max-width:390px;
+      box-shadow:0 24px 64px rgba(0,0,0,.3); overflow:hidden; position:relative;
+    }
+    /* top bar */
+    .tut-topbar {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 16px 10px;
+    }
+    .tut-dots { display:flex; gap:5px; }
+    .tut-dot {
+      width:7px; height:7px; border-radius:50%; background:#e5e7eb; transition:background .3s;
+    }
+    .tut-dot.on { background:linear-gradient(135deg,#2563eb,#7c3aed); }
+    .tut-topbtns { display:flex; gap:6px; }
+    .tut-spdbtn {
+      padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700;
+      background:#f3f4f6; color:#6b7280; border:none; cursor:pointer; transition:all .15s;
+    }
+    .tut-spdbtn.active { background:#fef3c7; color:#d97706; border-color:#fcd34d; }
+    .tut-skipbtn {
+      padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700;
+      background:#f3f4f6; color:#6b7280; border:none; cursor:pointer;
+    }
+    /* slide area */
+    .tut-slides { position:relative; overflow:hidden; min-height:260px; }
+    .tut-slide {
+      position:absolute; inset:0; padding:10px 22px 16px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      opacity:0; transform:translateX(30px); transition:opacity .3s, transform .3s; pointer-events:none;
+    }
+    .tut-slide.visible { opacity:1; transform:translateX(0); pointer-events:auto; }
+    .tut-slide.out     { opacity:0; transform:translateX(-30px); }
+    .tut-slide-icon { font-size:34px; margin-bottom:8px; }
+    .tut-slide-title { font-size:15px; font-weight:800; color:#1a1a2e; margin-bottom:14px; text-align:center; }
+    /* mini chat inside slides */
+    .tut-chat { width:100%; display:flex; flex-direction:column; gap:7px; margin-bottom:12px; }
+    .tut-crow { display:flex; gap:6px; align-items:flex-end; }
+    .tut-crow.r { flex-direction:row-reverse; }
+    .tut-cavi {
+      width:24px; height:24px; border-radius:50%; flex-shrink:0; font-size:11px;
+      display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(135deg,#2563eb,#7c3aed);
+    }
+    .tut-cavi.u { background:#e5e7eb; }
+    .tut-cbub {
+      padding:7px 11px; border-radius:12px; font-size:13px; line-height:1.45;
+      max-width:80%;
+    }
+    .tut-cbub.c { background:#f0f4ff; border-radius:3px 12px 12px 12px; color:#1a1a2e; font-weight:600; }
+    .tut-cbub.u { background:#e5e7eb; border-radius:12px 3px 12px 12px; color:#6b7280; font-style:italic; }
+    .tut-then {
+      font-size:11px; color:#9ca3af; text-align:center; margin:4px 0 6px;
+    }
+    .tut-btnprev {
+      display:inline-block; padding:7px 16px; border-radius:22px; font-size:13px; font-weight:700;
+      border:2px solid #2563eb; color:#2563eb; background:white; margin-bottom:5px;
+    }
+    .tut-btnprev.p { border-color:#7c3aed; color:#7c3aed; }
+    .tut-hint { font-size:11.5px; color:#6b7280; text-align:center; }
+    /* case rows inside slides */
+    .tut-case-row { width:100%; background:#f8faff; border-radius:10px; padding:10px 12px; margin-bottom:4px; text-align:center; }
+    .tut-case-badge {
+      display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; margin-bottom:2px;
+    }
+    .tut-case-badge.yes { background:#dcfce7; color:#166534; }
+    .tut-case-badge.no  { background:#fee2e2; color:#991b1b; }
+    .tut-case-action { font-size:12px; color:#2563eb; font-weight:600; margin-top:4px; }
+    .tut-case-divider { font-size:11px; color:#9ca3af; text-align:center; margin:6px 0; }
+    /* bottom nav */
+    .tut-nav { display:flex; align-items:center; justify-content:space-between; padding:12px 16px 14px; }
+    .tut-navlabel { font-size:11px; color:#9ca3af; }
+    .tut-nextbtn {
+      padding:9px 20px; background:linear-gradient(135deg,#2563eb,#7c3aed); color:white;
+      border:none; border-radius:20px; font-size:13px; font-weight:700; cursor:pointer;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ WELCOME ═══════════════════════════════════════ -->
+<div id="welcome-screen" class="screen active">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
+    <div class="wcard">
+      <span class="badge">⚡ LitShip</span>
+      <h1>自己分析アプリ</h1>
+      <p class="sub">コーチ形式の対話で自分の<br>価値観・夢・強みを言語化しよう</p>
+      <div class="chips">
+        <span class="chip">🎯 やりたいこと</span>
+        <span class="chip">🚫 やりたくないこと</span>
+        <span class="chip">💼 職種・環境</span>
+        <span class="chip">⚡ アクション</span>
+        <span class="chip">💪 強み</span>
+      </div>
+
+      <div class="fg">
+        <label>お名前</label>
+        <input type="text" id="name-inp" placeholder="例：山田 太郎"
+          onkeydown="if(event.key==='Enter') goToBriefing()">
+      </div>
+
+      <div class="fg">
+        <label>前回のシートを追加・継続する場合（任意）</label>
+        <textarea id="paste-inp" class="paste-area"
+          placeholder="前回の自己分析テキストをここに貼り付け"
+          oninput="onPasteInput(this)"></textarea>
+        <div class="import-badge" id="import-badge"></div>
+      </div>
+
+      <button class="btn-go" onclick="goToBriefing()">次へ →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BRIEFING ══════════════════════════════════════ -->
+<div id="briefing-screen" class="screen">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
+    <div class="bfcard">
+      <div class="bf-head">
+        <div class="bf-avi">🧑‍💼</div>
+        <div>
+          <div class="bf-from">LitShip コーチより</div>
+          <div class="bf-title">始める前に読んでね</div>
+        </div>
+      </div>
+      <div class="bf-speech" id="bf-speech">
+        今日はよろしく！<br><br>
+        仲がいいからこそ言いにくいこともあると思うし、
+        就活の話ってちょっと恥ずかしい部分もあるかもしれない。<br>
+        でも、この場では<strong>本音で話してくれた方がいい答えが出てくる</strong>から、固くなんなくていいよ。<br><br>
+        ジャッジする場じゃなくて、一緒に考える場。今日の答えに正解・不正解はないから。
+      </div>
+      <div class="bf-boxes">
+        <div class="bf-box">
+          <div class="bx-t">📋 今日の流れ</div>
+          <div class="bx-b">
+            ① コーチの質問に答えていく（20〜30分）<br>
+            ② 自己分析テキストが自動で完成<br>
+            ③ テキストをコピーしてGoogleフォームに貼り付け<br>
+            ④ 提出内容をもとにさらに深い面談へ
+          </div>
+        </div>
+        <div class="bf-box">
+          <div class="bx-t">💡 答えられなくてもOK</div>
+          <div class="bx-b">
+            「ない」と入力か「次へ」ボタンで飛ばせる。ぼんやりした答えでも全然いいよ。<br>
+            間違えたら <strong>↩ 戻る</strong> で何ステップでも遡れるし、<strong>前のテーマに戻る</strong> ボタンで前のテーマを追記・修正もできるよ。
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+        <button class="btn-bf" onclick="startChat()">始めよう →</button>
+        <button class="btn-bf" style="background:white;color:#2563eb;border:2px solid #2563eb;" onclick="openTutorial()">📖 使い方を先に確認する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CHAT ══════════════════════════════════════════ -->
+<div id="chat-screen" class="screen">
+  <div class="cheader">
+    <div class="chtop">
+      <div class="chavi">🧑‍💼</div>
+      <div>
+        <div class="chname">LitShip コーチ</div>
+        <div class="chphase" id="chphase">自己分析セッション中</div>
+      </div>
+    </div>
+    <div class="pbwrap" id="pbwrap"></div>
+  </div>
+  <div class="msgs"  id="msgs"></div>
+  <div class="qzone" id="qzone"></div>
+  <div class="ibar">
+    <textarea id="inp" rows="1" placeholder="メッセージを入力… (Enterで送信)"
+      oninput="grow(this)" onkeydown="onEnter(event)"></textarea>
+    <button id="sbtn" onclick="submit()">↑</button>
+  </div>
+</div>
+
+<!-- ═══ SUMMARY ══════════════════════════════════════ -->
+<div id="summary-screen" class="screen">
+  <div class="shero">
+    <div class="emo">🎉</div>
+    <h1>自己分析 完了！</h1>
+    <p id="ssub"></p>
+  </div>
+  <div class="sbody" id="sbody"></div>
+  <div class="sacts">
+    <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">📋 テキストをコピーして貼り付け</div>
+    <div class="txt-wrap">
+      <button class="copy-btn" id="copy-btn" onclick="copyText()">📋 コピー</button>
+      <textarea class="txt-output" id="txt-output" readonly></textarea>
+    </div>
+    <a id="flink" href="https://docs.google.com/forms/d/e/1FAIpQLSf1w1x4xicPFTL-F8NpZcwOM7tz-h5e3DY6QqzKrPQ5VNRvLA/viewform" target="_blank" class="abt red">📝 Googleフォームで提出する</a>
+    <button class="abt ghost" onclick="restart()">↩ やり直す</button>
+  </div>
+</div>
+
+<!-- ═══ TUTORIAL MODAL ════════════════════════════════ -->
+<div id="tut-modal">
+  <div class="tut-shell">
+
+    <!-- top bar: dots + close -->
+    <div class="tut-topbar">
+      <div class="tut-dots" id="tut-dots"></div>
+      <div class="tut-topbtns">
+        <button class="tut-skipbtn" onclick="closeTut()">✕ 閉じる</button>
+      </div>
+    </div>
+
+    <!-- slides -->
+    <div class="tut-slides" id="tut-slides">
+
+      <!-- slide 0: overview -->
+      <div class="tut-slide" id="tsl-0">
+        <div class="tut-slide-icon">💬</div>
+        <div class="tut-slide-title">基本の流れ</div>
+        <div class="tut-chat">
+          <div class="tut-crow">
+            <div class="tut-cavi">🧑‍💼</div>
+            <div class="tut-cbub c">やりたいことを1つ教えて！</div>
+          </div>
+          <div class="tut-crow r">
+            <div class="tut-cavi u">👤</div>
+            <div class="tut-cbub u">世界一周したい</div>
+          </div>
+          <div class="tut-crow">
+            <div class="tut-cavi">🧑‍💼</div>
+            <div class="tut-cbub c">なんで？</div>
+          </div>
+          <div class="tut-crow r">
+            <div class="tut-cavi u">👤</div>
+            <div class="tut-cbub u">見たことない景色が見たいから</div>
+          </div>
+          <div class="tut-crow">
+            <div class="tut-cavi">🧑‍💼</div>
+            <div class="tut-cbub c">それはなんで？</div>
+          </div>
+        </div>
+        <div class="tut-hint">「なんで？」を繰り返して深掘りしていく。<br>答えが浮かぶかぎり、そのまま入力し続けてOK。</div>
+      </div>
+
+      <!-- slide 1: なんで？ -->
+      <div class="tut-slide" id="tsl-1">
+        <div class="tut-slide-title" style="margin-bottom:16px;">コーチ：<span style="color:#2563eb;">「なんで？」</span>が来たら</div>
+        <!-- case A: answer exists -->
+        <div class="tut-case-row">
+          <div class="tut-case-badge yes">答えが浮かぶ</div>
+          <div class="tut-chat" style="margin-top:6px;margin-bottom:0;">
+            <div class="tut-crow r">
+              <div class="tut-cavi u">👤</div>
+              <div class="tut-cbub u">自分の可能性を試したいから</div>
+            </div>
+          </div>
+          <div class="tut-case-action">→ そのまま入力して送信</div>
+        </div>
+        <div class="tut-case-divider">— または —</div>
+        <!-- case B: no more -->
+        <div class="tut-case-row">
+          <div class="tut-case-badge no">もう出てこない</div>
+          <div class="tut-then" style="margin:6px 0 4px;">↓ このボタンを押す</div>
+          <div class="tut-btnprev">これ以上ない →</div>
+        </div>
+      </div>
+
+      <!-- slide 2: 他にある？ -->
+      <div class="tut-slide" id="tsl-2">
+        <div class="tut-slide-title" style="margin-bottom:16px;">コーチ：<span style="color:#7c3aed;">「他にある？」</span>が来たら</div>
+        <!-- case A: has more -->
+        <div class="tut-case-row">
+          <div class="tut-case-badge yes">別の項目がある</div>
+          <div class="tut-chat" style="margin-top:6px;margin-bottom:0;">
+            <div class="tut-crow r">
+              <div class="tut-cavi u">👤</div>
+              <div class="tut-cbub u">建物を設計したい</div>
+            </div>
+          </div>
+          <div class="tut-case-action">→ そのまま入力して送信</div>
+        </div>
+        <div class="tut-case-divider">— または —</div>
+        <!-- case B: no more items -->
+        <div class="tut-case-row">
+          <div class="tut-case-badge no">もう思いつかない</div>
+          <div class="tut-then" style="margin:6px 0 4px;">↓ このボタンを押す</div>
+          <div class="tut-btnprev p">次のテーマへ →</div>
+        </div>
+      </div>
+
+      <!-- slide 3: undo -->
+      <div class="tut-slide" id="tsl-3">
+        <div class="tut-slide-icon">↩</div>
+        <div class="tut-slide-title">間違えたら何ステップでも戻れる</div>
+        <div class="tut-chat" style="margin-bottom:10px;">
+          <div class="tut-crow r">
+            <div class="tut-cavi u">👤</div>
+            <div class="tut-cbub u">（3つ前に戻りたい…）</div>
+          </div>
+        </div>
+        <div class="tut-then">↓ いつでもタップOK（時間制限なし）</div>
+        <div style="display:inline-block;padding:7px 16px;border-radius:22px;font-size:13px;font-weight:700;border:2px solid #dc2626;color:#dc2626;margin-bottom:6px;">↩ 戻る (残3)</div>
+        <div class="tut-hint">押すたびに1ステップずつ遡れるよ。<br>前のテーマへの移動も「前のテーマへ」ボタンで可能！</div>
+      </div>
+
+    </div>
+
+    <!-- bottom nav -->
+    <div class="tut-nav">
+      <div class="tut-navlabel" id="tut-navlabel">1 / 4</div>
+      <button class="tut-nextbtn" id="tut-nextbtn" onclick="tutNext()">次へ →</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ═══ CONFIG ════════════════════════════════════════════ */
+const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSf1w1x4xicPFTL-F8NpZcwOM7tz-h5e3DY6QqzKrPQ5VNRvLA/viewform';  // ← 実際のURLに変更
+
+const BLOCKS = [
+  {
+    id:'wants', icon:'🎯', label:'やりたいこと',
+    title:'死ぬまでにやりたいこと・成し遂げたいこと',
+    whyQs:['なんで？','それはなんで？','その気持ちの根っこにあるのは？','もっと深く言えることある？','それってどういうこと？','そこが好きな理由って何だと思う？','おー！もっと教えて。'],
+    ackQ:() => pick(['いいじゃん！ 他にある？','それいいね！ 他には？','なるほど！ 他にある？','いいね。 他には？']),
+  },
+  {
+    id:'donts', icon:'🚫', label:'やりたくないこと',
+    title:'これからの人生でやりたくないこと',
+    whyQs:['なんで？','それはなんで？','もっと言える？','そこが嫌な理由って何？'],
+    ackQ:() => pick(['わかった。 他には？','なるほど。 他には？','そっかそっか。 他には？']),
+  },
+  {
+    id:'env', icon:'💼', label:'職種・環境',
+    title:'こういう職種・環境',
+    whyQs:['なんでそれ？','もう少し詳しく？','どんなイメージ？','それはなんで？','それってどういう感じ？'],
+    ackQ:() => pick(['なるほど！ 他には？','いいイメージだね。 他には？','そっかそっか。 他には？']),
+  },
+  {
+    id:'actions', icon:'⚡', label:'ネクストアクション',
+    title:'ネクストアクション',
+    whyQs:['それはどういうこと？','なんでそれ？','もう少し詳しく？'],
+    ackQ:() => '了解！ 他には？',
+  },
+  {
+    id:'strengths', icon:'💪', label:'強み',
+    title:'強み',
+    whyQs:['どんな場面で発揮されてる？','なんでそれが強みだと思う？','もっと言える？','それってどういうこと？'],
+    ackQ:() => pick(['それ強みだね！ 他には？','なるほど！ 他には？','いいじゃん！ 他には？']),
+  }
+];
+
+const BLOCK_INTROS = [
+  `了解！\n\n次のテーマ！\n「これからの人生でやりたくないこと」🚫\n\n何かある？`,
+  `了解！\n\n次！\n「こういう職種・環境」💼\n\nどんな仕事・職場が理想か教えて。`,
+  `了解！\n\nあと少し！\n「ネクストアクション」⚡\n\nこれからやっていくこと、何かある？`,
+  `了解！\n\n最後！\n「強み・得意なこと」💪\n\nどんな強みがあると思う？`,
+];
+
+/* ═══ STATE ══════════════════════════════════════════════ */
+let st;
+function initSt() {
+  st = {
+    name:'',
+    sub:'wu_year',
+    blockIdx:0,
+    item:{ main:'', reasons:[] },
+    whyIdx:0,
+    busy:false,
+    importedData:null,
+    wu:{ year:'', litship:'', why:'' },
+    data:{}
+  };
+  BLOCKS.forEach(b => { st.data[b.id] = []; });
+}
+initSt();
+
+/* ═══ UTILS ══════════════════════════════════════════════ */
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function wait(ms) { return new Promise(r=>setTimeout(r,ms)); }
+
+const NO_MORE = [
+  /^ない(です|かな|よ|ね|わ|っす)?[。！!～〜]*$/,
+  /^なし[。！!]*$/,/^以上[。！!]*$/,/^終わり(です)?[。！!]*$/,
+  /^それだけ[。！!]*$/,/^特にない[。！!]*$/,/^もうない[。！!]*$/,
+  /^思いつかない[。！!]*$/,/^わからない[。！!]*$/,/^パス[。！!]*$/,
+  /^スキップ[。！!]*$/,/^次[。！!]*$/,/^ok[。！!]*$/i,
+  /^おk[。！!]*$/,/^いいです[。！!]*$/,/^大丈夫[。！!]*$/,
+];
+function isNoMore(t){ return t.trim()==='' || NO_MORE.some(p=>p.test(t.trim())); }
+
+/* ═══ PASTE IMPORT ═══════════════════════════════════════ */
+function onPasteInput(el) {
+  const text = el.value.trim();
+  const badge = document.getElementById('import-badge');
+  if (!text) {
+    st.importedData = null;
+    badge.style.display = 'none';
+    return;
+  }
+  st.importedData = parseImported(text);
+  const total = Object.values(st.importedData).reduce((a,b)=>a+b.length,0);
+  if (total > 0) {
+    badge.textContent = `✅ ${total}件を読み込みました。今回の内容を追加します。`;
+    badge.style.display = 'block';
+  } else {
+    badge.style.display = 'none';
+    st.importedData = null;
+  }
+}
+
+function parseImported(text) {
+  const result = {};
+  BLOCKS.forEach(b => { result[b.id] = []; });
+  const MAP = [
+    ['死ぬまでにやりたいこと','wants'],['やりたいこと','wants'],
+    ['やりたくないこと','donts'],
+    ['職種・環境','env'],['こういう職種','env'],
+    ['ネクストアクション','actions'],
+    ['強み','strengths'],
+  ];
+  let cur = null;
+  for (const line of text.split('\n')) {
+    const t = line.trim();
+    if (!t) continue;
+    let matched = false;
+    for (const [kw,id] of MAP) {
+      if (t.includes(kw)) { cur=id; matched=true; break; }
+    }
+    if (matched) continue;
+    if (cur && /^[•・*\-]/.test(t)) {
+      const item = t.replace(/^[•・*\-\s]+/,'').trim();
+      if (item) result[cur].push({ main:item, reasons:[], imported:true });
+    }
+  }
+  return result;
+}
+
+/* ═══ SCREENS ════════════════════════════════════════════ */
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function goToBriefing() {
+  const name = document.getElementById('name-inp').value.trim();
+  if (!name) { alert('お名前を入力してください'); return; }
+  st.name = name;
+
+  // Update briefing if importing
+  if (st.importedData) {
+    const total = Object.values(st.importedData).reduce((a,b)=>a+b.length,0);
+    document.getElementById('bf-speech').innerHTML =
+      `今日はよろしく！<br><br>前回のシートを読み込んだよ（${total}件）。<br>今日は追加で出てきた内容を足していこう。<br><br>固くなんなくていいから、<strong>本音で話してくれると嬉しい</strong>。<br>ジャッジする場じゃなくて、一緒に考える場だから。`;
+  }
+  show('briefing-screen');
+}
+
+/* ═══ START CHAT ═════════════════════════════════════════ */
+function startChat() {
+  document.getElementById('ssub').textContent = `${st.name}さんの自己分析シート`;
+  document.getElementById('flink').href = FORM_URL;
+  buildPB(); updatePB();
+
+  // Pre-populate from imported file
+  if (st.importedData) {
+    BLOCKS.forEach(b => {
+      st.data[b.id] = [...(st.importedData[b.id]||[])];
+    });
+  }
+
+  show('chat-screen');
+
+  if (st.importedData) {
+    // 前回シートあり → LitShip warmup をスキップして直接 get_item へ
+    st.sub = 'get_item';
+    st.blockIdx = 0;
+    updatePB();
+    coachSay(
+      `${st.name}、おかえり！\n\n前回のシートを引き継いだよ。\nちょっと「なんで？」ってしつこく聞いていくけど、聞き方失礼かもだけど便宜上ごめんね。\n\n「死ぬまでにやりたいこと・成し遂げたいこと」🎯\n\n追加はある？`,
+      500
+    );
+  } else {
+    coachSay(
+      `${st.name}、よろしく！\n\n本音で話してくれると嬉しいよ。\n固くなんなくていいから、ざっくばらんにいこう！\n\nまず聞かせて——\n今何年生？どんな学部に通ってるの？`,
+      500
+    );
+  }
+}
+
+/* ═══ CHAT UI ════════════════════════════════════════════ */
+let tNode = null;
+
+function addBubble(role, text) {
+  const c = document.getElementById('msgs');
+  const row = document.createElement('div');
+  row.className = `brow ${role}`;
+  const av = document.createElement('div');
+  av.className = `bavi2 ${role==='coach'?'ca':'ua'}`;
+  av.textContent = role==='coach'?'🧑‍💼':(st.name.charAt(0)||'👤');
+  const bc = document.createElement('div'); bc.className='bcnt';
+  const lb = document.createElement('div'); lb.className='blbl';
+  lb.textContent = role==='coach'?'コーチ':st.name+'さん';
+  const bub = document.createElement('div'); bub.className=`bub ${role}`;
+  bub.textContent = text;
+  bc.appendChild(lb); bc.appendChild(bub);
+  row.appendChild(av); row.appendChild(bc);
+  c.appendChild(row); c.scrollTop=c.scrollHeight;
+}
+
+function showTyping() {
+  const c = document.getElementById('msgs');
+  tNode = document.createElement('div'); tNode.className='trow';
+  tNode.innerHTML=`<div class="bavi2 ca" style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;">🧑‍💼</div><div style="display:flex;flex-direction:column;"><div style="font-size:10px;color:#9ca3af;margin-bottom:3px;">コーチ</div><div class="tbub"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  c.appendChild(tNode); c.scrollTop=c.scrollHeight;
+}
+function hideTyping(){ if(tNode){tNode.remove();tNode=null;} }
+
+async function coachSay(text, ms=550) {
+  showTyping();
+  await wait(ms);
+  hideTyping();
+  addBubble('coach',text);
+  updateQ();
+}
+
+/* ═══ PROGRESS BAR ═══════════════════════════════════════ */
+function buildPB() {
+  const pb = document.getElementById('pbwrap'); pb.innerHTML='';
+  BLOCKS.forEach((b,i) => {
+    const d = document.createElement('div');
+    d.className='pbstep'; d.id=`pb${i}`; d.textContent=b.icon+' '+b.label;
+    pb.appendChild(d);
+  });
+}
+function updatePB() {
+  BLOCKS.forEach((_,i) => {
+    const el = document.getElementById(`pb${i}`); if(!el) return;
+    el.className='pbstep'+(i<st.blockIdx?' done':i===st.blockIdx?' active':'');
+  });
+  const b = BLOCKS[st.blockIdx];
+  if(b && !st.sub.startsWith('wu_'))
+    document.getElementById('chphase').textContent=b.title;
+}
+
+/* ═══ TUTORIAL ════════════════════════════════════════════ */
+const TUT_SLIDES = 4;
+let tutIdx = 0;
+
+function openTutorial() {
+  tutIdx = 0;
+  buildTutDots();
+  Array.from(document.querySelectorAll('.tut-slide')).forEach(s => {
+    s.classList.remove('visible','out');
+  });
+  document.getElementById('tsl-0').classList.add('visible');
+  updateTutUI();
+  document.getElementById('tut-modal').classList.add('show');
+}
+
+function buildTutDots() {
+  const el = document.getElementById('tut-dots'); el.innerHTML = '';
+  for (let i=0;i<TUT_SLIDES;i++) {
+    const d = document.createElement('div');
+    d.className = 'tut-dot'; d.id = 'tdot-'+i;
+    el.appendChild(d);
+  }
+}
+
+function updateTutUI() {
+  for (let i=0;i<TUT_SLIDES;i++) {
+    const d = document.getElementById('tdot-'+i);
+    if (d) d.className = 'tut-dot'+(i===tutIdx?' on':'');
+  }
+  document.getElementById('tut-navlabel').textContent = (tutIdx+1)+' / '+TUT_SLIDES;
+  document.getElementById('tut-nextbtn').textContent = tutIdx===TUT_SLIDES-1 ? '理解した ✓' : '次へ →';
+}
+
+function tutGoTo(idx) {
+  const cur = document.getElementById('tsl-'+tutIdx);
+  const nxt = document.getElementById('tsl-'+idx);
+  if (cur) { cur.classList.remove('visible'); cur.classList.add('out');
+    setTimeout(()=>cur.classList.remove('out'), 350); }
+  if (nxt) nxt.classList.add('visible');
+  tutIdx = idx;
+  updateTutUI();
+}
+
+function tutNext() {
+  if (tutIdx < TUT_SLIDES-1) tutGoTo(tutIdx+1);
+  else closeTut();
+}
+
+function closeTut() {
+  document.getElementById('tut-modal').classList.remove('show');
+}
+
+/* ═══ HISTORY (多段アンドゥ) ══════════════════════════════ */
+let history = [];         // [{text, msgCount, snap}, ...]
+const MAX_HISTORY = 8;
+
+function saveHistory(text, msgCount, snap) {
+  history.push({ text, msgCount, snap });
+  if (history.length > MAX_HISTORY) history.shift();
+}
+
+function updateUndoBtn() {
+  const z = document.getElementById('qzone');
+  let btn = document.getElementById('undo-btn');
+  if (history.length === 0 || st.sub === 'done') {
+    if (btn) btn.remove();
+    return;
+  }
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.className = 'qbtn undo'; btn.id = 'undo-btn';
+    btn.onclick = performUndo;
+    z.insertBefore(btn, z.firstChild);
+  }
+  btn.textContent = `↩ 戻る (残${history.length})`;
+}
+
+function performUndo() {
+  if (!history.length) return;
+  const entry = history.pop();
+  const msgs = document.getElementById('msgs');
+  while (msgs.children.length > entry.msgCount) msgs.lastChild.remove();
+  Object.keys(entry.snap).forEach(k => { st[k] = entry.snap[k]; });
+  if (entry.text) {
+    const inp = document.getElementById('inp');
+    inp.value = entry.text;
+    inp.dispatchEvent(new Event('input'));
+    inp.focus();
+  }
+  updateUndoBtn();
+  updatePB();
+  updateQ();
+}
+
+/* ═══ 前のテーマへ ════════════════════════════════════════ */
+function goToPrevTheme() {
+  const prevIdx = st.blockIdx - 1;
+  if (prevIdx < 0) return;
+  // データは保持したまま blockIdx だけ戻す
+  st.blockIdx = prevIdx;
+  st.sub = 'get_item';
+  st.item = { main:'', reasons:[] };
+  st.whyIdx = 0;
+  st.busy = false;
+  history = [];  // 前テーマ移動後は履歴リセット
+  updatePB();
+  updateQ();
+  coachSay(
+    `${BLOCKS[prevIdx].icon} ${BLOCKS[prevIdx].label}に戻ったよ！\n追加で入れたいものがあれば入力してね。\n終わったら「次のテーマへ →」を押して。`,
+    300
+  );
+}
+
+function updateQ() {
+  const z = document.getElementById('qzone');
+  // Remove all buttons EXCEPT undo
+  Array.from(z.children).forEach(c=>{ if(c.id!=='undo-btn') c.remove(); });
+  if (st.busy) return;
+  if (st.sub.startsWith('wu_')) return;
+
+  if (st.sub==='get_why') {
+    mkQ(z,'これ以上ない →','',()=>noMore());
+  } else if (st.sub==='get_item') {
+    if (st.blockIdx > 0) mkQ(z,'← 前のテーマへ','prev',goToPrevTheme);
+    mkQ(z,'次のテーマへ →','sec',()=>noMore());
+  }
+  updateUndoBtn();
+}
+
+function mkQ(p,lbl,cls,fn) {
+  const b=document.createElement('button');
+  b.className='qbtn'+(cls?' '+cls:'');
+  b.textContent=lbl; b.onclick=fn;
+  p.appendChild(b);
+}
+function noMore(){
+  const msgs = document.getElementById('msgs');
+  saveHistory('', msgs.children.length, JSON.parse(JSON.stringify(st)));
+  handle('ない');
+}
+
+/* ═══ MAIN HANDLER ═══════════════════════════════════════ */
+async function handle(text) {
+  if (st.busy) return;
+  st.busy=true;
+  document.getElementById('sbtn').disabled=true;
+  // Remove contextual buttons (keep undo)
+  Array.from(document.getElementById('qzone').children)
+    .forEach(c=>{ if(c.id!=='undo-btn') c.remove(); });
+
+  /* ─ WARMUP ─ */
+  if (st.sub==='wu_year') {
+    st.wu.year = text;
+    st.sub='wu_litship';
+    await coachSay(`${text}か！\n\nLitShipに入ったきっかけって何だったの？`,520);
+
+  } else if (st.sub==='wu_litship') {
+    st.wu.litship = text;
+    st.sub='wu_why';
+    await coachSay('なんで？',480);
+
+  } else if (st.sub==='wu_why') {
+    st.wu.why = text;
+    st.sub='get_item';
+    st.blockIdx=0;
+    updatePB();
+    await coachSay(
+`なるほど！
+
+じゃあここから本題いくよ！
+ちょっと「なんで？」ってしつこく聞いていくけど、聞き方失礼かもだけど便宜上ごめんね。
+本質を引き出したいから。答えにくかったら「ない」でOK。
+
+「死ぬまでにやりたいこと・成し遂げたいこと」🎯
+
+まず1つ、何でもいいから教えて！`, 650);
+
+  /* ─ GET_ITEM ─ */
+  } else if (st.sub==='get_item') {
+    if (isNoMore(text)) {
+      st.blockIdx++;
+      if (st.blockIdx>=BLOCKS.length) {
+        st.sub='done';
+        await coachSay(`お疲れ様！全部終わったよ！\n\nいろいろ話してくれてありがとう。\nまとめておくね ✨`,400);
+        st.busy=false;
+        setTimeout(showSummary,1800);
+        return;
+      }
+      updatePB();
+      await coachSay(BLOCK_INTROS[st.blockIdx-1],600);
+    } else {
+      st.item={ main:text, reasons:[] };
+      st.whyIdx=0;
+      st.sub='get_why';
+      await coachSay(BLOCKS[st.blockIdx].whyQs[0],480);
+    }
+
+  /* ─ GET_WHY ─ */
+  } else if (st.sub==='get_why') {
+    if (isNoMore(text)) {
+      st.data[BLOCKS[st.blockIdx].id].push({ main:st.item.main, reasons:[...st.item.reasons] });
+      st.item={ main:'', reasons:[] };
+      st.sub='get_item';
+      await coachSay(BLOCKS[st.blockIdx].ackQ(),500);
+    } else {
+      st.item.reasons.push(text);
+      st.whyIdx++;
+      const wq=BLOCKS[st.blockIdx].whyQs;
+      await coachSay(wq[st.whyIdx % wq.length],420);
+    }
+  }
+
+  st.busy=false;
+  document.getElementById('sbtn').disabled=false;
+  updateQ();
+}
+
+/* ═══ SUBMIT ══════════════════════════════════════════════ */
+async function submit() {
+  if (st.busy) return;
+  const el=document.getElementById('inp');
+  const t=el.value.trim();
+  el.value=''; el.style.height='auto';
+  if (!t) return;
+
+  // Save to history BEFORE state changes
+  const msgCount=document.getElementById('msgs').children.length;
+  saveHistory(t, msgCount, JSON.parse(JSON.stringify(st)));
+
+  addBubble('user',t);
+  await handle(t);
+  updateUndoBtn();
+}
+function onEnter(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();submit();} }
+function grow(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,100)+'px'; }
+
+/* ═══ SUMMARY ════════════════════════════════════════════ */
+function showSummary() {
+  const body=document.getElementById('sbody'); body.innerHTML='';
+  const colors=['#2563eb','#dc2626','#059669','#d97706','#7c3aed'];
+  const hasImported = !!st.importedData;
+
+  BLOCKS.forEach((bl,i)=>{
+    const items=st.data[bl.id]||[];
+    if (!items.length) return;
+    const sec=document.createElement('div'); sec.className='ssec';
+    sec.style.borderLeftColor=colors[i%colors.length];
+    const h=document.createElement('div'); h.className='ssh';
+    h.textContent=bl.icon+' '+bl.title; sec.appendChild(h);
+    items.forEach(item=>{
+      const el=document.createElement('div');
+      el.className='ssi'+((!item.imported&&hasImported)?' new-item':'');
+      const im=document.createElement('div'); im.className='im';
+      im.textContent=item.main;
+      if (!item.imported && hasImported) {
+        const tag=document.createElement('span'); tag.className='new-tag'; tag.textContent='新';
+        im.appendChild(tag);
+      }
+      el.appendChild(im);
+      if (item.reasons.length) {
+        const ir=document.createElement('div'); ir.className='ir';
+        ir.textContent=item.reasons.join('　'); el.appendChild(ir);
+      }
+      sec.appendChild(el);
+    });
+    body.appendChild(sec);
+  });
+
+  // Build copyable text output
+  document.getElementById('txt-output').value = buildOutputText();
+
+  show('summary-screen');
+}
+
+/* ═══ TEXT OUTPUT & COPY ═════════════════════════════ */
+function buildOutputText() {
+  const date = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
+  const lines = [];
+  lines.push(`【${st.name}　自己分析シート】`);
+  lines.push(`LitShip 就活支援チーム　${date}`);
+  lines.push('');
+  // LitShip入会きっかけ（ウォームアップ回答がある場合のみ）
+  if (st.wu && st.wu.litship) {
+    lines.push('■ LitShipに入ったきっかけ');
+    if (st.wu.year) lines.push(`• ${st.wu.year}`);
+    lines.push(`• ${st.wu.litship}${st.wu.why ? '　→　' + st.wu.why : ''}`);
+    lines.push('');
+  }
+  BLOCKS.forEach(bl => {
+    const items = st.data[bl.id]||[];
+    if (!items.length) return;
+    lines.push(`■ ${bl.title}`);
+    items.forEach(item => {
+      const full = item.reasons.length ? item.main+' '+item.reasons.join(' ') : item.main;
+      lines.push(`• ${full}`);
+    });
+    lines.push('');
+  });
+  return lines.join('\n').trimEnd();
+}
+
+function copyText() {
+  const ta = document.getElementById('txt-output');
+  ta.select(); ta.setSelectionRange(0, 999999);
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch(e){}
+  if (!ok && navigator.clipboard) navigator.clipboard.writeText(ta.value);
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = '✅ コピー完了！'; btn.classList.add('copied');
+  setTimeout(()=>{ btn.textContent='📋 コピー'; btn.classList.remove('copied'); }, 2200);
+}
+
+/* ═══ RESTART ════════════════════════════════════════════ */
+function restart() {
+  history = [];
+  initSt();
+  document.getElementById('msgs').innerHTML='';
+  document.getElementById('qzone').innerHTML='';
+  document.getElementById('name-inp').value='';
+  document.getElementById('paste-inp').value='';
+  document.getElementById('import-badge').style.display='none';
+  show('welcome-screen');
+}
+</script>
+</body>
+</html>
