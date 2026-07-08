@@ -279,8 +279,7 @@
           <div class="bx-b">
             ① コーチの質問に答えていく（20〜30分）<br>
             ② 自己分析テキストが自動で完成<br>
-            ③ テキストをコピーしてGoogleフォームに貼り付け<br>
-            ④ 提出内容をもとにさらに深い面談へ
+            ③ テキストをコピーして活用しよう
           </div>
         </div>
         <div class="bf-box">
@@ -334,7 +333,6 @@
       <button class="copy-btn" id="copy-btn" onclick="copyText()">📋 コピー</button>
       <textarea class="txt-output" id="txt-output" readonly></textarea>
     </div>
-    <a id="flink" href="https://docs.google.com/forms/d/e/1FAIpQLSf1w1x4xicPFTL-F8NpZcwOM7tz-h5e3DY6QqzKrPQ5VNRvLA/viewform" target="_blank" class="abt red">📝 Googleフォームで提出する</a>
     <button class="abt ghost" onclick="restart()">↩ やり直す</button>
   </div>
 </div>
@@ -457,7 +455,6 @@
 
 <script>
 /* ═══ CONFIG ════════════════════════════════════════════ */
-const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSf1w1x4xicPFTL-F8NpZcwOM7tz-h5e3DY6QqzKrPQ5VNRvLA/viewform';  // ← 実際のURLに変更
 
 const BLOCKS = [
   {
@@ -585,7 +582,6 @@ function goToBriefing() {
 /* ═══ START CHAT ═════════════════════════════════════════ */
 function startChat() {
   document.getElementById('ssub').textContent = `${st.name}さんの自己分析シート`;
-  document.getElementById('flink').href = FORM_URL;
   buildPB(); updatePB();
 
   // Pre-populate from imported file
